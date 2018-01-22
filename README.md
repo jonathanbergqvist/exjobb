@@ -1,0 +1,2 @@
+# exjobb
+This is the repository for my M.Sc thesis at Linköping Univeristy, Sweden.
