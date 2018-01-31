@@ -1,0 +1,823 @@
+/*
+ * InterfaceComparison.h
+ *
+ *  Created on: Feb 10, 2016
+ *      Author: claudio
+ */
+
+#ifndef INTERFACECOMPARISON_H_
+#define INTERFACECOMPARISON_H_
+
+#define max(a,b) a>b?a:b
+#define min(a,b) a>b?b:a
+
+#define neighborhood 1000000
+#define DBL_MAX 100000000.00
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <float.h>
+#include <time.h>
+#include <string.h>
+#include <malloc.h>
+#include "RunningStat.h"
+#include <sstream>
+#include <iostream>
+#include <fstream>
+
+
+//#include <algorithm>
+#include <cmath>        // std::abs
+
+#include "Molecule.h"
+
+
+
+
+class InterfaceComparison{
+
+	private:
+
+
+		double **diff;  //distance matrix
+		double score;
+		double dScore;
+		double de;
+
+<<<<<<< HEAD
+
+=======
+		int** BLOSUM;
+		int* AAtoi;
+		
+>>>>>>> 6aa42570180e39d43a021ec9dac420d18c5251ed
+		double d0;
+
+		int length;
+
+		int contributes; //the number of contributes to the score
+
+		Molecule* molA;
+		Molecule* molB;
+
+		double deltaD;
+		double deltaN;
+		double deltaS;
+
+		int** BLOSUM;
+		int* AAtoi;
+
+	public:
+
+		InterfaceComparison(Molecule* molA, Molecule* molB);
+		void destroy();
+
+		void load_BLOSUM62(char *fileA);
+		void cacheDifference();
+
+		void updateDifferenceA(int i, int j);
+		void updateDifferenceA2(int i, int j);
+
+		void updateDifferenceB(int i, int j);
+		void updateDifferenceB2(int i, int j);
+
+		double deltaA(int i, int j);
+		void deltaA2(int i, int j);
+		double deltaB(int i, int j);
+		void deltaB2(int i, int j);
+
+		void deltaSeqA(int i, int j);
+		void deltaSeqB(int i, int j);
+
+		double temperatureSD(double mi, double sigma, double Told);
+
+		double getScore();
+		double getdScore();
+		double getDeltaD();
+		double getDeltaN();
+		double getDeltaS();
+		int getContributes();
+
+		void loadBLOSUM62(char* file);
+		void setD0(double d);
+		void printDiff();
+
+};
+
+InterfaceComparison::InterfaceComparison(Molecule* A, Molecule* B){
+
+	this->molA = A;
+	this->molB = B;
+
+	this->d0 = 1;
+
+	this->length = A->getLength();
+
+	this->score = 0;
+	this->dScore = DBL_MAX;
+	this->contributes = 0;
+
+    	this->diff = new double*[this->length];
+
+	for(int x=0; x<this->length; x++){
+
+		diff[x]  = new double[this->length];
+
+	}
+
+
+}
+
+
+
+void InterfaceComparison::load_BLOSUM62(char *fileA){    
+    
+	int l=24;
+	
+    	BLOSUM = new int*[l];
+	AAtoi = new int[l];
+
+	for(int i=0; i<l; i++){
+		BLOSUM[i] = new int[l];
+	}
+    	string line;
+	string word;
+	//load PDB coordinates
+	ifstream fin (fileA);
+
+    	if (fin.is_open()){
+        	for(int m=0; m<l; m++){
+
+			getline(fin, line);
+			istringstream iss(line, istringstream::in);
+			for(int n=0; n<l+1; n++){
+		
+				iss >> word;
+
+				if(n>0){
+					BLOSUM[m][n-1] = atoi(word.c_str());
+				}else if(word.c_str()[0] != '-'){
+
+					AAtoi[word.c_str()[0]-'A'] = m;	
+
+				}
+
+			}
+           
+        	}
+        fin.close();
+    }
+    else
+    {
+	char error[5000];
+	sprintf(error, "Can not open file: %s\n", fileA);
+	cerr << error << endl;
+	exit(1);
+    } 
+
+
+    
+}
+
+//calculates the full difference between the two matrices
+void InterfaceComparison::cacheDifference(){
+
+	//cout << dScore << " ";
+
+	this->score = 0;
+	this->dScore = 0;
+	this->contributes = 0;
+
+	for(int i=0; i<this->length; i++){
+
+		//this->diff[i][i] = 0;
+		//this->contributes++;
+		for(int j=i; j<this->length; j++){
+
+
+				if(!molA->getNull()[i] && !molA->getNull()[j]){
+
+					this->diff[i][j] = this->diff[j][i] = abs(molA->getDist()[i][j]-molB->getDist()[i][j]);
+
+					this->dScore += this->diff[i][j];
+					this->score +=  1.0/(1.0+(this->diff[i][j]/d0)*(this->diff[i][j]/d0));
+
+					this->contributes++;
+				}else{
+					this->diff[i][j] = this->diff[j][i] = 0;
+				}
+
+		}
+
+	}
+
+
+}
+
+
+
+
+void InterfaceComparison::updateDifferenceA(int i, int j){
+
+
+	//if i is going to be enabled (j disabled)
+	if(molA->getNull()[i]){
+
+
+		//going down the i-j columns for a and b
+		for(int r=0; r<this->length; r++){
+
+
+			if(r!=i && r!=j){//if the difference is lower, delta has to be negative
+
+				           //  - 1*(BLOSUM[AAtoi[seqA[i]-'A']][AAtoi[seqB[i]-'A']] + BLOSUM[AAtoi[seqA[j]-'A']][AAtoi[seqB[j]-'A']]);
+
+					if(!molA->getNull()[r]){
+						this->dScore += 1*(abs(molA->getDist()[j][r] - molB->getDist()[j][r]));
+						this->score  += 1.0/(1.0+(abs(molA->getDist()[j][r] - molB->getDist()[j][r])/d0)*(abs(molA->getDist()[j][r] - molB->getDist()[j][r])/d0));
+					}
+
+					if(!molA->getNull()[r]){
+						this->dScore -= 1*(abs(molA->getDist()[i][r] - molB->getDist()[i][r]));
+						this->score  -= 1.0/(1.0+(abs(molA->getDist()[i][r] - molB->getDist()[i][r])/d0)*(abs(molA->getDist()[i][r] - molB->getDist()[i][r])/d0));
+					}
+
+
+			}
+
+
+		}
+
+	//if j is going to be enabled (i disabled)
+	}else if(molA->getNull()[j]){
+	  //de += BLOSUM[AAtoi[seqA[i]-'A']][AAtoi[seqB[i]-'A']]  - BLOSUM[AAtoi[seqA[j]-'A']][AAtoi[seqB[j]-'A']];
+
+		for(int r=0; r<this->length; r++){
+
+
+
+			if(r!=i && r!=j){//if the difference is lower, delta has to be negative
+
+					if(!molA->getNull()[r]){
+						this->dScore += 1*(abs(molA->getDist()[i][r] - molB->getDist()[i][r]));
+						this->score  += 1.0/(1.0+(abs(molA->getDist()[i][r] - molB->getDist()[i][r])/d0)*(abs(molA->getDist()[i][r] - molB->getDist()[i][r])/d0));
+					}
+					if(!molA->getNull()[r]){
+						this->dScore -= 1*(abs(molA->getDist()[j][r] - molB->getDist()[j][r]));
+						this->score  -= 1.0/(1.0+(abs(molA->getDist()[j][r] - molB->getDist()[j][r])/d0)*(abs(molA->getDist()[j][r] - molB->getDist()[j][r])/d0));
+					}
+
+			}
+		}
+
+
+
+	}
+
+	for(int m=0; m<this->length; m++){
+
+	//if i is going to be enabled (j disabled)
+		if(molA->getNull()[i]){
+			if(m!=i && m!=j){
+
+				if(!molA->getNull()[m]){
+
+					diff[i][m] = diff[m][i] = abs(molA->getDist()[i][m]-molB->getDist()[i][m]);
+
+				}
+
+
+
+				if(!molA->getNull()[m]){
+
+					diff[j][m] = diff[m][j] = 0;
+
+				}
+
+			}
+
+		//if j is going to be enabled (i disabled)
+		}else  if(molA->getNull()[j]){
+				if(!molA->getNull()[m]){
+
+					diff[i][m] = diff[m][i] = 0;
+
+				}
+
+
+
+				if(!molA->getNull()[m]){
+
+					diff[j][m] = diff[m][j] = abs(molA->getDist()[j][m]-molB->getDist()[j][m]);
+
+				}
+		}
+	}
+
+}
+
+void InterfaceComparison::updateDifferenceA2(int i, int j){
+
+
+	this->dScore += deltaD;
+	this->score += deltaN;
+
+	for(int m=0; m<this->length; m++){
+
+	//if i is going to be enabled (j disabled)
+		if(molA->getNull()[i]){
+			if(m!=i && m!=j){
+
+				if(!molA->getNull()[m]){
+
+					diff[i][m] = diff[m][i] = abs(molA->getDist()[i][m]-molB->getDist()[i][m]);
+
+				}
+
+
+
+				if(!molA->getNull()[m]){
+
+					diff[j][m] = diff[m][j] = 0;
+
+				}
+
+			}
+
+		//if j is going to be enabled (i disabled)
+		}else  if(molA->getNull()[j]){
+				if(!molA->getNull()[m]){
+
+					diff[i][m] = diff[m][i] = 0;
+
+				}
+
+
+
+				if(!molA->getNull()[m]){
+
+					diff[j][m] = diff[m][j] = abs(molA->getDist()[j][m]-molB->getDist()[j][m]);
+
+				}
+		}
+	}
+	//re-normalise scores with new count
+	//*score /= *count;// (sizeMax*sizeMax/4);
+	//*dScore /= *count;//(sizeMax*sizeMax/4);
+	//cout << dScore << "\n";
+}
+
+void InterfaceComparison::updateDifferenceB(int i, int j){
+
+
+	if(j < this->length){
+
+		//going down the i-j columns for a and b
+		for(int r=0; r<this->length; r++){
+
+
+			if(r!=i && r!=j && !molA->getNull()[i] && !molA->getNull()[r]){//if the difference is lower, delta has to be negative   //
+
+
+
+				             	 //old difference   									//new difference
+				this->dScore -= 1*(abs(molA->getDist()[i][r] - molB->getDist()[j][r]) - abs(molA->getDist()[i][r] - molB->getDist()[i][r]) );///(size);//*size);
+
+				this->score -= 1.0/(1.0+(abs(molA->getDist()[i][r] - molB->getDist()[j][r])/d0)*(abs(molA->getDist()[i][r] - molB->getDist()[j][r])/d0));
+				this->score += 1.0/(1.0+(abs(molA->getDist()[i][r] - molB->getDist()[i][r])/d0)*(abs(molA->getDist()[i][r] - molB->getDist()[i][r])/d0));
+
+
+
+			}
+
+			if(r!=i && r!=j && !molA->getNull()[j] && !molA->getNull()[r]){//if the difference is lower, delta has to be negative //
+
+
+				             	 //old difference   	 								//new difference
+				this->dScore -= 1*(abs(molA->getDist()[j][r] - molB->getDist()[i][r]) - abs(molA->getDist()[j][r] - molB->getDist()[j][r]));///(size);//*size);
+
+				this->score -= 1.0/(1.0+(abs(molA->getDist()[j][r] - molB->getDist()[i][r])/d0)*(abs(molA->getDist()[j][r] - molB->getDist()[i][r])/d0));
+				this->score += 1.0/(1.0+(abs(molA->getDist()[j][r] - molB->getDist()[j][r])/d0)*(abs(molA->getDist()[j][r] - molB->getDist()[j][r])/d0));
+
+
+			}
+		}
+
+
+
+	//j is in the outer subset, molA->getNull()[i] can't be true
+	}else{
+
+		for(int r=0; r<this->length; r++){
+
+
+
+			if(r!=i && r!=j && !molA->getNull()[r]){//
+
+				             //old difference   	 									//new difference
+				this->dScore -= 1*(abs(molA->getDist()[i][r] - molB->getDist()[j][r]) - abs(molA->getDist()[i][r] - molB->getDist()[i][r]) );///(size);//*size);
+				this->score -= 1.0/(1.0+(abs(molA->getDist()[i][r] - molB->getDist()[j][r])/d0)*(abs(molA->getDist()[i][r] - molB->getDist()[j][r])/d0));
+				this->score += 1.0/(1.0+(abs(molA->getDist()[i][r] - molB->getDist()[i][r])/d0)*(abs(molA->getDist()[i][r] - molB->getDist()[i][r])/d0));
+			}
+		}
+
+
+	}
+
+	for(int m=0; m<this->length; m++){
+
+
+		if(m!=i && m!=j){
+
+
+
+			if(i < this->length){
+
+				if(!molA->getNull()[i] && !molA->getNull()[m]){
+
+					diff[i][m] = diff[m][i] = abs(molA->getDist()[i][m]-molB->getDist()[i][m]);
+
+				}else{
+					diff[i][m] = diff[m][i] = 0;
+				}
+			}
+
+
+			if(j < this->length){
+				if(!molA->getNull()[j] & !molA->getNull()[m]){
+
+					diff[j][m] = diff[m][j] = abs(molA->getDist()[j][m]-molB->getDist()[j][m]);
+
+				}else{
+					diff[j][m] = diff[j][i] = 0;
+				}
+			}
+		}
+	}
+
+	//re-normalise scores with new count
+	//*score /= *count;//(sizeMax*sizeMax/4);
+	//*dScore /= *count;//(sizeMax*sizeMax/4);
+	//cout << dScore << "\n";
+
+}
+
+void InterfaceComparison::updateDifferenceB2(int i, int j){
+
+
+	this->dScore += deltaD;
+	this->score += deltaN;
+
+	for(int m=0; m<this->length; m++){
+
+
+		if(m!=i && m!=j){
+
+
+
+			if(i < this->length){
+
+				if(!molA->getNull()[i] && !molA->getNull()[m]){
+
+					diff[i][m] = diff[m][i] = abs(molA->getDist()[i][m]-molB->getDist()[i][m]);
+
+				}else{
+					diff[i][m] = diff[m][i] = 0;
+				}
+			}
+
+
+			if(j < this->length){
+				if(!molA->getNull()[j] & !molA->getNull()[m]){
+
+					diff[j][m] = diff[m][j] = abs(molA->getDist()[j][m]-molB->getDist()[j][m]);
+
+				}else{
+					diff[j][m] = diff[j][i] = 0;
+				}
+			}
+		}
+	}
+
+}
+
+
+
+void InterfaceComparison::deltaA2(int i, int j){
+
+	de=0;
+
+	deltaD = 0;
+	deltaN = 0;
+	//if i is going to be enabled (j disabled)
+	if(molA->getNull()[i]){
+
+	  //de += - (BLOSUM[AAtoi[seqA[i]-'A']][AAtoi[seqB[i]-'A']]  - BLOSUM[AAtoi[seqA[j]-'A']][AAtoi[seqB[j]-'A']]);
+
+		//going down the i-j columns for a and b
+		for(int r=0; r<this->length; r++){
+
+
+			if(r!=i && r!=j){//if the difference is lower, delta has to be negative
+
+				           //  - 1*(BLOSUM[AAtoi[seqA[i]-'A']][AAtoi[seqB[i]-'A']] + BLOSUM[AAtoi[seqA[j]-'A']][AAtoi[seqB[j]-'A']]);
+
+					if(!(molA->getNull()[r])){
+
+						de = (abs(molA->getDist()[i][r] - molB->getDist()[i][r]));///(size*size);
+
+						deltaD += de;
+						deltaN += 1.0/(1.0+(de/d0)*(de/d0));
+						//cout << "de+: " << (abs(molA->getDist()[i][r] - molB->getDist()[i][r])) << "\n";
+
+						//de += 1.0/(1.0+(abs(molA->getDist()[i][r] - molB->getDist()[i][r])/d0)*(abs(molA->getDist()[i][r] - molB->getDist()[i][r])/d0));
+					//}
+
+					//if(!(molA->getNull()[r])){
+						de = (abs(molA->getDist()[j][r] - molB->getDist()[j][r]));///(size);//*size);
+
+						deltaD -= de;
+						deltaN -= 1.0/(1.0+(de/d0)*(de/d0));
+						//cout << "de-: " << (abs(molA->getDist()[j][r] - molB->getDist()[j][r])) << "\n";
+						//de -= 1.0/(1.0+(abs(molA->getDist()[j][r] - molB->getDist()[j][r])/d0)*(abs(molA->getDist()[j][r] - molB->getDist()[j][r])/d0));
+						//count++;
+					}
+
+
+			}
+
+
+		}
+
+	//if j is going to be enabled (i disabled)
+	}else if(molA->getNull()[j]){
+	  //de += BLOSUM[AAtoi[seqA[i]-'A']][AAtoi[seqB[i]-'A']]  - BLOSUM[AAtoi[seqA[j]-'A']][AAtoi[seqB[j]-'A']];
+
+		for(int r=0; r<this->length; r++){
+
+
+
+			if(r!=i && r!=j){//if the difference is lower, delta has to be negative
+
+					if(!(molA->getNull()[r])){
+						de = (abs(molA->getDist()[i][r] - molB->getDist()[i][r]));///(size);//*size);
+						deltaD -= de;
+						deltaN -= 1.0/(1.0+(de/d0)*(de/d0));
+						//de -= 2.0/(1.0+(abs(molA->getDist()[i][r] - molB->getDist()[i][r])/d0)*(abs(molA->getDist()[i][r] - molB->getDist()[i][r])/d0));
+					//}
+					//if(!(molA->getNull()[r])){
+						de+= (abs(molA->getDist()[j][r] - molB->getDist()[j][r]));///(size);//*size);
+						deltaD += de;
+						deltaN += 1.0/(1.0+(de/d0)*(de/d0));
+
+						//de += 2.0/(1.0+(abs(molA->getDist()[j][r] - molB->getDist()[j][r])/d0)*(abs(molA->getDist()[j][r] - molB->getDist()[j][r])/d0));
+						//count++;
+					}
+
+			}
+		}
+
+
+
+	}
+//cout << "delta before normalisation: " << de << "\n";
+	//return de/sqrt((double)this->contributes);///(*count/2);
+
+}
+
+double InterfaceComparison::getDeltaD(){
+
+	return deltaD/(double)this->contributes;
+
+}
+
+double InterfaceComparison::getDeltaN(){
+
+	return deltaN;///((double)this->contributes);
+
+}
+
+double InterfaceComparison::getDeltaS(){
+
+	return deltaS;///((double)this->contributes);
+
+}
+
+void InterfaceComparison::deltaB2(int i, int j){
+
+	double de=0;
+	//double count=0;
+	deltaD = 0;
+	deltaN = 0;
+
+
+	//b[j] and b[i] to be switched. one of them might be a gap (only j, actually. so the b[j] positions shouldn't compared with the a[i] positions, in this case)
+
+	//both in the inner subset
+	if(j < this->length){
+
+		//going down the i-j columns for a and b
+		for(int r=0; r<this->length; r++){
+
+
+			if(r!=i && r!=j && !molA->getNull()[i] && !molA->getNull()[r]){//if the difference is lower, delta has to be negative   //
+
+
+												//- (BLOSUM[AAtoi[seqA[i]-'A']][AAtoi[seqB[j]-'A']] - BLOSUM[AAtoi[seqA[i]-'A']][AAtoi[seqB[i]-'A']])
+				             //new difference   	 //old difference
+					//de+= (abs(Da[i][r] - Db[j][r]) - abs(Da[i][r] - Db[i][r]) );///(size);//*size);
+					//count++;
+					//de += 1.0/(1.0+(abs(molA->getDist()[i][r] - molB->getDist()[j][r])/d0)*(abs(molA->getDist()[i][r] - molB->getDist()[j][r])/d0));
+					//de -= 1.0/(1.0+(abs(molA->getDist()[i][r] - molB->getDist()[i][r])/d0)*(abs(molA->getDist()[i][r] - molB->getDist()[i][r])/d0));
+				    de = abs(molA->getDist()[i][r] - molB->getDist()[j][r]);
+				    deltaD += de;
+				    deltaN += 1.0/(1.0+(de/d0)*(de/d0));
+
+					de = abs(molA->getDist()[i][r] - molB->getDist()[i][r]);
+					deltaD -= de;
+					deltaN -= 1.0/(1.0+(de/d0)*(de/d0));
+
+			}
+
+			if(r!=i && r!=j && !molA->getNull()[j]  && !molA->getNull()[r]){//if the difference is lower, delta has to be negative //
+
+												//- (BLOSUM[AAtoi[seqA[j]-'A']][AAtoi[seqB[i]-'A']] - BLOSUM[AAtoi[seqA[j]-'A']][AAtoi[seqB[j]-'A']])
+				             //new difference   	 //old difference
+					//de+= (abs(Da[j][r] - Db[i][r]) - abs(Da[j][r] - Db[j][r]));///(size);//*size);
+					//count++;
+					//de += 1.0/(1.0+(abs(molA->getDist()[j][r] - molB->getDist()[i][r])/d0)*(abs(molA->getDist()[j][r] - molB->getDist()[i][r])/d0));
+					//de -= 1.0/(1.0+(abs(molA->getDist()[j][r] - molB->getDist()[j][r])/d0)*(abs(molA->getDist()[j][r] - molB->getDist()[j][r])/d0));
+					de = abs(molA->getDist()[j][r] - molB->getDist()[i][r]);
+				    deltaD += de;
+				    deltaN += 1.0/(1.0+(de/d0)*(de/d0));
+
+					de = abs(molA->getDist()[j][r] - molB->getDist()[j][r]);
+				    deltaD -= de;
+				    deltaN -= 1.0/(1.0+(de/d0)*(de/d0));
+
+			}
+		}
+
+
+
+	//j is in the outer subset, molA->getNull()[i] can't be true
+	}else{
+
+		for(int r=0; r<this->length; r++){
+
+
+
+			if(r!=i && r!=j && !molA->getNull()[r]){//
+												//- (BLOSUM[AAtoi[seqA[i]-'A']][AAtoi[seqB[j]-'A']] - BLOSUM[AAtoi[seqA[i]-'A']][AAtoi[seqB[i]-'A']])
+				             //new difference   	 //old difference
+
+					//de+= (abs(Da[i][r] - Db[j][r]) - abs(Da[i][r] - Db[i][r]) );///(size);//*size);
+					//count++;
+					//de += 1.0/(1.0+(abs(molA->getDist()[i][r] - molB->getDist()[j][r])/d0)*(abs(molA->getDist()[i][r] - molB->getDist()[j][r])/d0));
+					//de -= 1.0/(1.0+(abs(molA->getDist()[i][r] - molB->getDist()[i][r])/d0)*(abs(molA->getDist()[i][r] - molB->getDist()[i][r])/d0));
+					de = abs(molA->getDist()[i][r] - molB->getDist()[j][r]);
+				    deltaD += de;
+				    deltaN += 1.0/(1.0+(de/d0)*(de/d0));
+
+					de = abs(molA->getDist()[i][r] - molB->getDist()[i][r]);
+				    deltaD -= de;
+				    deltaN -= 1.0/(1.0+(de/d0)*(de/d0));
+
+			}
+		}
+
+
+	}
+
+
+	//return de/sqrt((double)this->contributes);
+
+}
+
+void InterfaceComparison::setD0(double d){
+
+	this->d0 = d;
+
+}
+
+double InterfaceComparison::getScore(){
+
+	return this->score/this->contributes;
+
+}
+
+double InterfaceComparison::getdScore(){
+
+	return this->dScore/this->contributes;
+
+}
+
+int InterfaceComparison::getContributes(){
+
+	return this->contributes;
+
+}
+
+/*double InterfaceComparison::temperature(int i, double T0){
+
+	double a;
+	//a=a*a;
+	a=T0*exp(-i/2000);
+	return a;
+
+}*/
+
+double InterfaceComparison::temperatureSD(double mi, double sigma, double Told){
+
+	double Tnew;
+	double fdyn;
+
+	fdyn = 1/(1 + Told*mi*log(1+0.0001)/3*sigma);
+
+	Tnew=Told*fdyn;
+
+	return Tnew;
+
+}
+
+void InterfaceComparison:: destroy()
+{
+
+	//fix this
+
+
+
+	for(int x=0; x<this->length; x++){
+
+		delete[] diff[x];
+
+	}
+
+	delete[] diff;
+
+}
+
+void InterfaceComparison::printDiff(){
+
+	for(int i=0; i<this->length; i++){
+		for(int j=0; j<this->length; j++){
+
+
+			cout << this->diff[i][j] << "\t";
+
+		}
+		cout << "\n";
+	}
+}
+
+void InterfaceComparison::loadBLOSUM62(char *fileA)
+{
+
+	int l=24;
+
+    BLOSUM = new int*[l];
+	AAtoi = new int[l];
+
+	for(int i=0; i<l; i++){
+		BLOSUM[i] = new int[l];
+	}
+    	string line;
+	string word;
+	//load PDB coordinates
+	ifstream fin (fileA);
+
+    	if (fin.is_open()){
+        	for(int m=0; m<l; m++){
+
+			getline(fin, line);
+			istringstream iss(line, istringstream::in);
+			for(int n=0; n<l+1; n++){
+
+				iss >> word;
+
+				if(n>0){
+					BLOSUM[m][n-1] = atoi(word.c_str());
+				}else if(word.c_str()[0] != '-'){
+
+					AAtoi[word.c_str()[0]-'A'] = m;
+					//cout << word.c_str()[0] << " " << word.c_str()[0]-'A' << " " << m << "\n" << flush;
+				}
+
+			}
+
+        	}
+        fin.close();
+    }
+    else
+    {
+	char error[5000];
+	sprintf(error, "Can not open file: %s\n", fileA);
+	cerr << error << endl;
+	exit(1);
+    }
+
+
+
+}
+#endif /* INTERFACECOMPARISON_H_ */

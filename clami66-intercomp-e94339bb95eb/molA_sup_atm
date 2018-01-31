@@ -1,0 +1,40 @@
+load inline
+select *A
+color blue
+select *B
+color red
+select all
+cartoon
+exit
+REMARK TM-align Version 20130511
+REMARK Chain 1:molAA.pdb   Size=  29
+REMARK Chain 2:molB.pdb    Size=  29 (TM-score is normalized by   29, d0=  1.19)
+REMARK Aligned length=  13, RMSD=  3.60, TM-score=0.11797, ID=0.000
+ATOM      0  CA  THR A   0      37.743  40.526  -4.249
+ATOM      2  CA  ARG A   2      40.358  47.123  -2.583
+ATOM      8  CA  THR A   8      40.765  55.196   2.403
+ATOM      9  CA  VAL A   9      49.878  39.980  15.669
+ATOM     10  CA  ASN A  10      47.285  37.347  15.684
+ATOM     11  CA  TYR A  11      44.417  37.921  13.171
+ATOM     14  CA  ALA A  14      44.436  53.061   9.562
+ATOM     16  CA  PRO A  16      39.765  49.115   5.827
+ATOM     17  CA  GLY A  17      41.104  49.905   2.312
+ATOM     18  CA  ASP A  18      44.447  51.066   3.678
+ATOM     19  CA  SER A  19      46.023  47.560   3.734
+ATOM     20  CA  THR A  20      50.296  48.438   6.262
+ATOM     21  CA  SER A  21      49.073  45.161   7.614
+TER
+ATOM      6  CA  PHE B   6      37.936  39.559  -3.153
+ATOM      8  CA  THR B   8      41.127  47.708  -2.873
+ATOM      9  CA  VAL B   9      41.457  56.218   4.359
+ATOM     10  CA  ASN B  10      49.368  40.096  15.025
+ATOM     11  CA  TYR B  11      47.169  41.872  17.610
+ATOM     12  CA  GLY B  12      44.348  35.857   7.479
+ATOM     18  CA  ASP B  18      44.592  53.903   8.342
+ATOM     20  CA  VAL B  20      43.257  46.582   3.055
+ATOM     21  CA  SER B  21      39.297  48.397   3.034
+ATOM     22  CA  GLY B  22      39.225  47.474   6.749
+ATOM     23  CA  GLY B  23      48.412  47.457   1.037
+ATOM     24  CA  SER B  24      49.841  49.428   7.842
+ATOM     28  CA  TYR B  28      47.646  44.183   7.110
+TER
